@@ -33,21 +33,34 @@ if uploaded_file:
     data = list(col.find({}))
 
     best_diff = float("inf")
-    best_match = None
+best_match = None
 
-    # Comparação por diferença absoluta (igual seu código)
-    for d in data:
-        vector = np.array(d["vector"])
+TARGET_W, TARGET_H = 360, 260  # tamanho padrão FEI
 
-        if len(vector) != len(arr_user_flat):
-            # Pula se dimensões forem diferentes
-            continue
+# Redimensiona a foto do usuário
+img_user_resized = img_user.resize((TARGET_W, TARGET_H))
+arr_user = np.array(img_user_resized).astype("float32")
 
-        diff = np.sum(np.abs(vector - arr_user_flat))
+for d in data:
 
-        if diff < best_diff:
-            best_diff = diff
-            best_match = d
+    # Recupera imagem do banco
+    vec = np.array(d["vector"], dtype="float32")
+    h, w = d["shape"]
+
+    # Reconstrói imagem original
+    img_bank = vec.reshape(h, w)
+
+    # Redimensiona a imagem do banco para o tamanho padrão
+    img_bank_resized = Image.fromarray(img_bank).resize((TARGET_W, TARGET_H))
+    arr_bank = np.array(img_bank_resized).astype("float32")
+
+    # Calcula diferença absoluta total
+    diff = np.sum(np.abs(arr_user - arr_bank))
+
+    if diff < best_diff:
+        best_diff = diff
+        best_match = d
+
 
     st.subheader("Resultado:")
 
@@ -62,3 +75,4 @@ if uploaded_file:
         st.image(matched_img, caption="Face mais parecida", width=250)
     else:
         st.write("Nenhuma imagem compatível encontrada.")
+
