@@ -1,36 +1,64 @@
 import streamlit as st
-from pymongo import MongoClient
-import gridfs
+import numpy as np
 from PIL import Image
+import base64
 import io
+from pymongo import MongoClient
 
-# Conexão com o MongoDB Atlas
-uri = "mongodb+srv://rafaelgbarbosa_db_user:NyNNVUunieVWlQBM@clusteratv.5n7czd8.mongodb.net/?appName=Clusteratv"
-client = MongoClient(uri)
-db = client['midias']
-fs = gridfs.GridFS(db)
+# Config Streamlit
+st.title("Reconhecimento Facial - Banco FEI (MongoDB Atlas)")
+st.write("Compare sua foto com a base FEI e veja a face mais parecida.")
 
-st.title("Visualizador de Imagens do GridFS")
+# Conexão MongoDB Atlas
+client = MongoClient("mongodb+srv://rafaelgbarbosa_db_user:v9qqQ4mfxYhPBzOH@atividade.ncii3ci.mongodb.net/?appName=atividade ")
+db = client["fei"]
+col = db["faces"]
 
-# Buscar todos os arquivos armazenados no GridFS
-arquivos = list(fs.find())
+# Upload
+uploaded_file = st.file_uploader("Envie uma imagem (JPG/PNG)", type=["jpg", "jpeg", "png"])
 
-if not arquivos:
-    st.warning("Nenhuma imagem encontrada no GridFS.")
-else:
-    st.write(f"Total de imagens armazenadas: {len(arquivos)}")
+if uploaded_file:
 
-    # Exibir imagens em colunas
-    cols = st.columns(3)  # 3 imagens por linha
-    for i, arquivo in enumerate(arquivos):
-        dados = arquivo.read()
-        imagem = Image.open(io.BytesIO(dados))
+    # Mostrar imagem enviada
+    img_user = Image.open(uploaded_file).convert("L")
+    st.image(img_user, caption="Imagem enviada", width=250)
 
-        with cols[i % 3]:
-            st.image(imagem, caption=arquivo.filename, use_container_width=True)
-            st.download_button(
-                label="Baixar",
-                data=dados,
-                file_name=arquivo.filename,
-                mime="image/jpeg"
-            )
+    # Converter para array para comparação
+    arr_user = np.array(img_user)
+    arr_user_flat = arr_user.flatten()
+
+    st.write("Comparando com a base...")
+
+    # Buscar todas as imagens do MongoDB
+    data = list(col.find({}))
+
+    best_diff = float("inf")
+    best_match = None
+
+    # Comparação por diferença absoluta (igual seu código)
+    for d in data:
+        vector = np.array(d["vector"])
+
+        if len(vector) != len(arr_user_flat):
+            # Pula se dimensões forem diferentes
+            continue
+
+        diff = np.sum(np.abs(vector - arr_user_flat))
+
+        if diff < best_diff:
+            best_diff = diff
+            best_match = d
+
+    st.subheader("Resultado:")
+
+    if best_match:
+        st.write(f"Imagem mais parecida: **{best_match['filename']}**")
+        st.write(f"Diferença total: `{best_diff}`")
+
+        # Recupera imagem do banco
+        img_bytes = base64.b64decode(best_match["image_b64"])
+        matched_img = Image.open(io.BytesIO(img_bytes))
+
+        st.image(matched_img, caption="Face mais parecida", width=250)
+    else:
+        st.write("Nenhuma imagem compatível encontrada.")
