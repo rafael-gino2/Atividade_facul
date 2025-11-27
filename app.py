@@ -10,7 +10,7 @@ st.title("Reconhecimento Facial - Banco FEI (MongoDB Atlas)")
 st.write("Compare sua foto com a base FEI e veja a face mais parecida.")
 
 # Conexão MongoDB Atlas
-client = MongoClient("mongodb+srv://rafaelgbarbosa_db_user:v9qqQ4mfxYhPBzOH@atividade.ncii3ci.mongodb.net/?appName=atividade ")
+client = MongoClient("mongodb+srv://rafaelgbarbosa_db_user:v9qqQ4mfxYhPBzOH@atividade.ncii3ci.mongodb.net/?appName=atividade")
 db = client["fei"]
 col = db["faces"]
 
@@ -23,45 +23,42 @@ if uploaded_file:
     img_user = Image.open(uploaded_file).convert("L")
     st.image(img_user, caption="Imagem enviada", width=250)
 
-    # Converter para array para comparação
-    arr_user = np.array(img_user)
-    arr_user_flat = arr_user.flatten()
-
     st.write("Comparando com a base...")
 
     # Buscar todas as imagens do MongoDB
     data = list(col.find({}))
 
     best_diff = float("inf")
-best_match = None
+    best_match = None
 
-TARGET_W, TARGET_H = 360, 260  # tamanho padrão FEI
+    TARGET_W, TARGET_H = 360, 260  # tamanho padrão FEI
 
-# Redimensiona a foto do usuário
-img_user_resized = img_user.resize((TARGET_W, TARGET_H))
-arr_user = np.array(img_user_resized).astype("float32")
+    # Redimensiona a foto do usuário
+    img_user_resized = img_user.resize((TARGET_W, TARGET_H))
+    arr_user = np.array(img_user_resized).astype("float32")
 
-for d in data:
+    # Loop de comparação
+    for d in data:
 
-    # Recupera imagem do banco
-    vec = np.array(d["vector"], dtype="float32")
-    h, w = d["shape"]
+        # Recupera imagem do banco
+        vec = np.array(d["vector"], dtype="float32")
+        h, w = d["shape"]
 
-    # Reconstrói imagem original
-    img_bank = vec.reshape(h, w)
+        # Reconstrói a imagem original
+        img_bank = vec.reshape(h, w)
 
-    # Redimensiona a imagem do banco para o tamanho padrão
-    img_bank_resized = Image.fromarray(img_bank).resize((TARGET_W, TARGET_H))
-    arr_bank = np.array(img_bank_resized).astype("float32")
+        # Redimensiona para o mesmo tamanho da imagem enviada
+        img_bank_resized = Image.fromarray(img_bank).resize((TARGET_W, TARGET_H))
+        arr_bank = np.array(img_bank_resized).astype("float32")
 
-    # Calcula diferença absoluta total
-    diff = np.sum(np.abs(arr_user - arr_bank))
+        # Calcula diferença absoluta
+        diff = np.sum(np.abs(arr_user - arr_bank))
 
-    if diff < best_diff:
-        best_diff = diff
-        best_match = d
+        if diff < best_diff:
+            best_diff = diff
+            best_match = d
 
-
+    # Mostrar resultado
     st.subheader("Resultado:")
 
     if best_match:
@@ -73,6 +70,6 @@ for d in data:
         matched_img = Image.open(io.BytesIO(img_bytes))
 
         st.image(matched_img, caption="Face mais parecida", width=250)
+
     else:
         st.write("Nenhuma imagem compatível encontrada.")
-
